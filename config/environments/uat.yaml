@@ -1,0 +1,4 @@
+# Overrides applied on top of config.yaml when ENV=uat
+base_url: "https://uat.example.com"
+api_base_url: "https://uat-api.example.com"
+db_connection_string: "test_data/uat_test.db"

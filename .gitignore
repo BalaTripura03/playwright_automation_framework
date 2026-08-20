@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment secrets
+.env
+
+# Pytest / test artifacts
+.pytest_cache/
+reports/screenshots/*.png
+reports/traces/*.zip
+reports/allure-results/*
+reports/framework.log
+!reports/screenshots/.gitkeep
+!reports/traces/.gitkeep
+!reports/allure-results/.gitkeep
+
+# Playwright
+test-results/
+playwright-report/
+
+# Databases created at runtime
+test_data/*.db
+
+# IDE
+.vscode/
+.idea/

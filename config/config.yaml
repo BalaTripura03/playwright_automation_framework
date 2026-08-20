@@ -1,0 +1,12 @@
+# Base configuration shared across all environments.
+# Values here are overridden by config/environments/<env>.yaml and then by .env / OS environment variables.
+environment: qa
+browser: chromium        # chromium | firefox | webkit
+headless: true
+slow_mo: 0               # milliseconds delay between Playwright actions, useful for debugging
+timeout: 30000           # default action/navigation timeout in ms
+viewport_width: 1920
+viewport_height: 1080
+base_url: "https://example.com"
+api_base_url: "https://api.example.com"
+db_connection_string: "test_data/test.db"

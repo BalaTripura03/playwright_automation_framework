@@ -1,4 +1,4 @@
 # Overrides applied on top of config.yaml when ENV=qa
-base_url: "https://qa.example.com"
+base_url: "https://www.saucedemo.com"
 api_base_url: "https://qa-api.example.com"
 db_connection_string: "test_data/qa_test.db"

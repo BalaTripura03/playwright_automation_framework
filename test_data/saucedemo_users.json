@@ -1,0 +1,19 @@
+{
+  "valid_user": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  },
+  "locked_user": {
+    "username": "locked_out_user",
+    "password": "secret_sauce"
+  },
+  "invalid_user": {
+    "username": "invalid_user",
+    "password": "wrong_password"
+  },
+  "checkout_info": {
+    "first_name": "Bala",
+    "last_name": "Tripura",
+    "postal_code": "500081"
+  }
+}

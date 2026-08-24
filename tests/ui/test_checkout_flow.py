@@ -1,4 +1,5 @@
-"""UI test covering the full Swag Labs purchase flow: login -> add to cart -> checkout -> confirmation."""
+"""UI test covering the full Swag Labs journey:
+login -> product validation -> add to cart -> checkout -> confirmation -> logout."""
 import pytest
 
 from pages.cart_page import CartPage
@@ -18,8 +19,13 @@ def test_end_to_end_checkout(page):
     login_page.login(data["valid_user"]["username"], data["valid_user"]["password"])
 
     inventory_page = InventoryPage(page)
+    assert inventory_page.get_title() == "Products"
+    assert inventory_page.get_product_count() == 6
+    assert "Sauce Labs Backpack" in inventory_page.get_product_names()
+
     inventory_page.add_to_cart("sauce-labs-backpack")
     inventory_page.add_to_cart("sauce-labs-bike-light")
+    inventory_page.wait_for_cart_count(2)
     assert inventory_page.get_cart_count() == 2
 
     inventory_page.open_cart()
@@ -34,3 +40,7 @@ def test_end_to_end_checkout(page):
 
     checkout_page.finish()
     assert "thank you" in checkout_page.get_completion_message().lower()
+
+    inventory_page.navigate("/inventory.html")
+    inventory_page.logout()
+    assert page.url.endswith("/")

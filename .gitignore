@@ -13,10 +13,21 @@ venv/
 reports/screenshots/*.png
 reports/traces/*.zip
 reports/allure-results/*
+reports/bugs/*.json
+reports/last_run.json
+reports/last_rerun.json
+reports/n8n-workflow-backup*.json
 reports/framework.log
 !reports/screenshots/.gitkeep
 !reports/traces/.gitkeep
 !reports/allure-results/.gitkeep
+!reports/bugs/.gitkeep
+
+# Self-learning locator repository grows/changes at runtime - keep the seed only if you want one tracked.
+test_data/locator_repository.json
+
+# AI-generated tests (ai/test_generator.py) - review and move worthwhile ones out manually.
+tests/ui/generated/
 
 # Playwright
 test-results/

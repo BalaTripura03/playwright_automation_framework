@@ -1,6 +1,9 @@
 """Root pytest fixtures wiring together BrowserManager, ContextManager and failure-reporting hooks."""
 import pytest
 
+from ai.bug_reporter import file_bug
+from ai.root_cause_analyzer import analyze_failure
+from config.config_reader import ConfigReader
 from core.browser_manager import BrowserManager
 from core.context_manager import ContextManager
 from utils.logger import get_logger
@@ -40,11 +43,21 @@ def page(context):
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Captures a screenshot automatically whenever a test using the `page` fixture fails."""
+    """On failure: captures a screenshot, then (if AI is enabled) runs root-cause analysis and
+    auto-files a bug report when the local LLM is confident it's a real application bug."""
     outcome = yield
     report = outcome.get_result()
     if report.when == "call" and report.failed:
         page = item.funcargs.get("page")
+        screenshot_path = None
         if page:
-            path = capture_screenshot(page, item.name)
-            logger.info(f"Failure screenshot saved to {path}")
+            screenshot_path = capture_screenshot(page, item.name)
+            logger.info(f"Failure screenshot saved to {screenshot_path}")
+
+        if ConfigReader.get("ai_enabled", False):
+            try:
+                exception_text = str(call.excinfo.getrepr()) if call.excinfo else "Unknown exception"
+                analysis = analyze_failure(item.nodeid, exception_text)
+                file_bug(item.nodeid, analysis, evidence={"screenshot": screenshot_path})
+            except Exception as e:
+                logger.error(f"AI failure-analysis pipeline errored (test result unaffected): {e}")

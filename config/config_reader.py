@@ -40,6 +40,12 @@ class ConfigReader:
             config["headless"] = os.getenv("HEADLESS").strip().lower() == "true"
         if os.getenv("DB_CONNECTION_STRING"):
             config["db_connection_string"] = os.getenv("DB_CONNECTION_STRING")
+        if os.getenv("AI_ENABLED"):
+            config["ai_enabled"] = os.getenv("AI_ENABLED").strip().lower() == "true"
+        if os.getenv("OLLAMA_HOST"):
+            config["ollama_host"] = os.getenv("OLLAMA_HOST")
+        if os.getenv("OLLAMA_MODEL"):
+            config["ollama_model"] = os.getenv("OLLAMA_MODEL")
 
         config["environment"] = env
         cls._config_cache = config

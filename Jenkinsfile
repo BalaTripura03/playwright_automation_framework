@@ -22,7 +22,7 @@ pipeline {
             steps {
                 bat 'python -m venv .venv'
                 bat '.venv\\Scripts\\pip install -r requirements.txt'
-                bat '.venv\\Scripts\\python -m playwright install --with-deps'
+                bat '.venv\\Scripts\\python -m playwright install'
             }
         }
 
@@ -34,7 +34,13 @@ pipeline {
 
         stage('Publish Allure Report') {
             steps {
-                allure includeProperties: false, jdk: '', results: [[path: 'reports/allure-results']]
+                script {
+                    if (fileExists('reports/allure-results')) {
+                        allure includeProperties: false, jdk: '', results: [[path: 'reports/allure-results']]
+                    } else {
+                        echo 'No Allure results found - skipping report publish.'
+                    }
+                }
             }
         }
     }

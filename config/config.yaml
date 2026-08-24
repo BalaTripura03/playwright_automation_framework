@@ -2,7 +2,7 @@
 # Values here are overridden by config/environments/<env>.yaml and then by .env / OS environment variables.
 environment: qa
 browser: chromium        # chromium | firefox | webkit
-headless: true
+headless: false
 slow_mo: 0               # milliseconds delay between Playwright actions, useful for debugging
 timeout: 30000           # default action/navigation timeout in ms
 viewport_width: 1920
@@ -10,3 +10,9 @@ viewport_height: 1080
 base_url: "https://www.saucedemo.com"
 api_base_url: "https://api.example.com"
 db_connection_string: "test_data/test.db"
+
+# AI features (Phase 3-5), powered by a local Ollama server instead of a paid cloud LLM.
+ai_enabled: false               # set true (or AI_ENABLED=true) to turn on RCA/bug-filing/generation
+ollama_host: "http://localhost:11434"
+ollama_model: "llama3.2"
+bug_confidence_threshold: 0.6   # minimum AI confidence required before auto-filing a bug report

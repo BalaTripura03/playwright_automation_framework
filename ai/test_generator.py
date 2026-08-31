@@ -50,7 +50,11 @@ def generate_test_spec(story: str) -> dict:
 
 
 def generate_test(story: str, file_name: str) -> str:
-    """Sends the story + a style example to the LLM and writes the generated test under tests/ui/generated/."""
+    """Sends the story + a style example to the LLM and writes the generated test under tests/ui/generated/.
+
+    Applies a small set of conservative post-processing transformations so generated tests better
+    match the repository's Page Object API (adds missing LoginPage import, prefers get_title()/get_product_count()).
+    """
     client = OllamaClient()
     prompt = (
         f"Existing test style example:\n{EXAMPLE}\n\n"
@@ -60,6 +64,16 @@ def generate_test(story: str, file_name: str) -> str:
     code = code.strip().strip("`")
     if code.lower().startswith("python"):
         code = code[len("python"):].lstrip()
+
+    # Small post-processing to reduce trivial incompatibilities with repository POMs
+    # 1) Ensure LoginPage is imported when referenced
+    if "LoginPage(" in code and "from pages.login_page import LoginPage" not in code:
+        code = code.replace("from pages.inventory_page import InventoryPage\n", "from pages.inventory_page import InventoryPage\nfrom pages.login_page import LoginPage\n")
+
+    # 2) Normalize common title/property usages to repository methods
+    code = code.replace("inventory_page.is_title_present(\"Product Inventory\")", "inventory_page.get_title() == \"Products\"")
+    code = code.replace("inventory_page.title", "inventory_page.get_title()")
+    code = code.replace("inventory_page.product_list.count", "inventory_page.get_product_count()")
 
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
     out_path = GENERATED_DIR / file_name

@@ -26,6 +26,21 @@ pipeline {
             }
         }
 
+        stage('Prepare Allure Metadata') {
+            steps {
+                bat 'if not exist reports\\allure-results mkdir reports\\allure-results'
+                script {
+                    def envText = "Environment=${params.ENV}\n" +
+                        "Browser=${params.BROWSER}\n" +
+                        "Framework=Playwright\n" +
+                        "TestFramework=Pytest\n" +
+                        "AI=Ollama\n" +
+                        "CI=Jenkins\n"
+                    writeFile file: 'reports/allure-results/environment.properties', text: envText
+                }
+            }
+        }
+
         stage('Run Tests') {
             steps {
                 bat '.venv\\Scripts\\python -m pytest --alluredir=reports/allure-results'

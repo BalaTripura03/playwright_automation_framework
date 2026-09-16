@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from flask import Flask, jsonify, request
@@ -56,9 +57,55 @@ def _validate_path(path_str: str) -> Path:
 
 def _validate_markers(markers: str) -> str:
     markers = markers or ""
+    if not isinstance(markers, str):
+        raise ValueError("'markers' must be a string")
     if not _SAFE_MARKER_RE.match(markers):
         raise ValueError("'markers' contains disallowed characters")
     return markers
+
+
+def _coerce_bool(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return bool(value) if value in (0, 1) else default
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+    return default
+
+
+def _validate_callback_url(callback_url: object) -> str:
+    if not isinstance(callback_url, str):
+        raise ValueError("'callback_url' must be a string")
+
+    candidate = callback_url.strip()
+    if not candidate:
+        raise ValueError("'callback_url' cannot be empty")
+
+    parsed = urlparse(candidate)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError("'callback_url' must use http:// or https://")
+    if not parsed.netloc:
+        raise ValueError("'callback_url' must include a host")
+    return candidate
+
+
+def _json_body() -> dict:
+    payload = request.get_json(silent=True)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _coerce_text(value: object, field_name: str, default: str = "") -> str:
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        raise ValueError(f"'{field_name}' must be a string")
+    text = value.strip()
+    return text if text else default
 
 
 def _parse_summary(output: str) -> dict:
@@ -305,15 +352,17 @@ def run_tests():
     """Body: {"message": "...", "path": "tests/ui", "markers": "ui and smoke",
     "callback_url": "...", "async": false}. `message` is optional and echoed back as-is,
     letting callers correlate the response with the original natural-language request."""
-    body = request.get_json(silent=True) or {}
+    body = _json_body()
     callback_url = body.get("callback_url")
-    is_async = bool(body.get("async", False))
+    is_async = _coerce_bool(body.get("async", False), default=False)
     original_request = body.get("message", "")
 
     try:
         validated_path = _validate_path(body.get("path", "tests"))
         validated_markers = _validate_markers(body.get("markers", ""))
-    except ValueError as e:
+        if callback_url is not None:
+            callback_url = _validate_callback_url(callback_url)
+    except (TypeError, ValueError) as e:
         return jsonify({"error": str(e)}), 400
 
     if is_async:
@@ -353,7 +402,11 @@ def show_bugs():
     """Answers 'show me the bugs' / 'show high severity bugs' style queries.
     severity comes from the query string (GET) or JSON body (POST); one of high/medium/low, or
     omitted/empty to return all bugs."""
-    severity = (request.values.get("severity") or (request.get_json(silent=True) or {}).get("severity") or "").strip().lower()
+    payload = _json_body()
+    try:
+        severity = _coerce_text(request.values.get("severity") or payload.get("severity") or "", "severity").lower()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     if severity and severity not in _VALID_SEVERITIES:
         return jsonify({"error": f"'severity' must be one of {sorted(_VALID_SEVERITIES)} or empty"}), 400
 
@@ -366,7 +419,11 @@ def show_bugs():
 @app.route("/webhook/get-bug", methods=["GET", "POST"])
 def get_bug():
     """Answers 'give me the details of BUG-xxxx' style queries."""
-    bug_id = (request.values.get("bug_id") or (request.get_json(silent=True) or {}).get("bug_id") or "").strip()
+    payload = _json_body()
+    try:
+        bug_id = _coerce_text(request.values.get("bug_id") or payload.get("bug_id") or "", "bug_id")
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     if not _BUG_ID_RE.match(bug_id):
         return jsonify({"error": "'bug_id' must look like BUG-xxxxxxxxxxxx"}), 400
 
@@ -381,7 +438,11 @@ def rerun_failed():
     """Answers 'rerun the failed tests' / 'rerun BUG-xxxx' style queries.
     With no bug_id: reruns every test that failed in the last recorded run (from last_run.json).
     With bug_id: reruns only that bug's associated test. Never reruns a whole suite."""
-    bug_id = (request.values.get("bug_id") or (request.get_json(silent=True) or {}).get("bug_id") or "").strip()
+    payload = _json_body()
+    try:
+        bug_id = _coerce_text(request.values.get("bug_id") or payload.get("bug_id") or "", "bug_id")
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     if bug_id:
         if not _BUG_ID_RE.match(bug_id):
@@ -491,7 +552,11 @@ def _generate_report(scope: str) -> dict:
 @app.route("/webhook/generate-report", methods=["GET", "POST"])
 def generate_report():
     """Answers 'give me a summary of the last run' / 'generate a test report' style queries."""
-    scope = (request.values.get("scope") or (request.get_json(silent=True) or {}).get("scope") or "last_run").strip()
+    payload = _json_body()
+    try:
+        scope = _coerce_text(request.values.get("scope") or payload.get("scope") or "last_run", "scope", "last_run")
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     return jsonify(_generate_report(scope)), 200
 
 

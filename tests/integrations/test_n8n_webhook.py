@@ -126,6 +126,29 @@ def test_run_tests_rejects_bad_path(client, auth_headers):
     assert resp.status_code == 400
 
 
+def test_run_tests_rejects_invalid_callback_url(client, auth_headers):
+    resp = client.post(
+        "/webhook/run-tests",
+        json={"path": "tests/framework", "async": True, "callback_url": "javascript:alert(1)"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+
+
+def test_run_tests_treats_string_false_as_not_async(client, auth_headers, webhook_module, monkeypatch):
+    monkeypatch.setattr(
+        webhook_module.subprocess, "run",
+        lambda *a, **k: _fake_pytest_result("1 passed in 0.12s\n", 0),
+    )
+    resp = client.post(
+        "/webhook/run-tests",
+        json={"path": "tests/framework", "async": "false"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["execution"]["passed"] is True
+
+
 def test_run_tests_passing_run(client, auth_headers, webhook_module, monkeypatch):
     monkeypatch.setattr(
         webhook_module.subprocess, "run",
@@ -208,6 +231,17 @@ def test_show_bugs_empty(client, auth_headers):
     assert resp.get_json()["count"] == 0
 
 
+def test_show_bugs_handles_non_dict_json_payload(client, auth_headers):
+    resp = client.post(
+        "/webhook/show-bugs",
+        data='["not-a-dict"]',
+        content_type="application/json",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["count"] == 0
+
+
 def test_show_bugs_filters_by_severity(client, auth_headers, webhook_module):
     _write_bug(webhook_module, "BUG-aaaaaaaaaaaa", confidence=0.9)  # high
     _write_bug(webhook_module, "BUG-bbbbbbbbbbbb", confidence=0.3)  # low
@@ -220,6 +254,11 @@ def test_show_bugs_filters_by_severity(client, auth_headers, webhook_module):
 
 def test_show_bugs_rejects_invalid_severity(client, auth_headers):
     resp = client.get("/webhook/show-bugs?severity=critical", headers=auth_headers)
+    assert resp.status_code == 400
+
+
+def test_show_bugs_rejects_non_string_severity(client, auth_headers):
+    resp = client.post("/webhook/show-bugs", json={"severity": ["high"]}, headers=auth_headers)
     assert resp.status_code == 400
 
 
@@ -239,6 +278,11 @@ def test_get_bug_not_found(client, auth_headers):
 
 def test_get_bug_rejects_malformed_id(client, auth_headers):
     resp = client.get("/webhook/get-bug?bug_id=not-a-bug-id", headers=auth_headers)
+    assert resp.status_code == 400
+
+
+def test_get_bug_rejects_non_string_bug_id(client, auth_headers):
+    resp = client.post("/webhook/get-bug", json={"bug_id": 123}, headers=auth_headers)
     assert resp.status_code == 400
 
 
@@ -312,6 +356,11 @@ def test_generate_report_with_no_history(client, auth_headers):
     resp = client.get("/webhook/generate-report", headers=auth_headers)
     body = resp.get_json()
     assert body["generated"] is False
+
+
+def test_generate_report_rejects_non_string_scope(client, auth_headers):
+    resp = client.post("/webhook/generate-report", json={"scope": ["last_run"]}, headers=auth_headers)
+    assert resp.status_code == 400
 
 
 def test_generate_report_reflects_persisted_bug_status(client, auth_headers, webhook_module):
